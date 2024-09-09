@@ -1949,6 +1949,31 @@ static void decode_msg(uint32_t eid, uint8_t *data8, int len, bool is_replaced) 
 					((uint32_t)CAN_PACKET_POLL_ROTOR_POS << 8), (uint8_t*)buffer, 4, true, 0);
 		} break;
 
+		case CAN_PACKET_CONF_PID_SPEED_KP_KD: {
+			ind = 0;
+			float kp = buffer_get_float32(data8, 1e8, &ind);
+			float kd = buffer_get_float32(data8, 1e8, &ind);
+
+			mc_configuration *mcconf = mempools_alloc_mcconf();
+			*mcconf = *mc_interface_get_configuration();
+
+			if (mcconf->s_pid_kp != kp || mcconf->s_pid_kd != kd) {
+				mcconf->s_pid_kp = kp;
+				mcconf->s_pid_kd = kd;
+
+				/*
+				if (cmd == CAN_PACKET_CONF_STORE_CURRENT_LIMITS_IN) {
+					conf_general_store_mc_configuration(mcconf,
+							mc_interface_get_motor_thread() == 2);
+				}
+				*/
+
+				mc_interface_set_configuration(mcconf);
+			}
+
+			mempools_free_mcconf(mcconf);
+		} break;
+
 		default:
 			break;
 		}
