@@ -561,7 +561,14 @@ void foc_run_pid_control_speed(bool index_found, float dt, motor_all_state_t *mo
 		}
 	}
 
-	motor->m_iq_set = output * conf_now->lo_current_max * conf_now->l_current_max_scale;
+	if (output < 0)
+	{
+		motor->m_iq_set = output * fabsf(conf_now->lo_current_min) * conf_now->l_current_min_scale;
+	}
+	else
+	{
+		motor->m_iq_set = output * conf_now->lo_current_max * conf_now->l_current_max_scale;
+	}
 }
 
 float foc_correct_encoder(float obs_angle, float enc_angle, float speed,
