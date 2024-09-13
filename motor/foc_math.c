@@ -551,6 +551,7 @@ void foc_run_pid_control_speed(bool index_found, float dt, motor_all_state_t *mo
 	}
 
 	// Optionally disable braking
+	bool is_braking = (rpm > 20.0 && output < 0.0) || (rpm < -20.0 && output > 0.0);
 	if (!conf_now->s_pid_allow_braking) {
 		if (rpm > 20.0 && output < 0.0) {
 			output = 0.0;
@@ -561,7 +562,7 @@ void foc_run_pid_control_speed(bool index_found, float dt, motor_all_state_t *mo
 		}
 	}
 
-	if (output < 0)
+	if (is_braking)
 	{
 		motor->m_iq_set = output * fabsf(conf_now->lo_current_min) * conf_now->l_current_min_scale;
 	}
