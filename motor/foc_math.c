@@ -531,7 +531,50 @@ void foc_run_pid_control_speed(bool index_found, float dt, motor_all_state_t *mo
 	p_term = error * conf_now->s_pid_kp * (1.0 / 20.0);
 	d_term = (error - motor->m_speed_prev_error) * (conf_now->s_pid_kd / dt) * (1.0 / 20.0);
 
+	// TEMPORARY Prevent P-term accelerating TODO: remove
+	/*
+	const int min_p_term_rpm = 100; // probably should be >200 without hall sensors
+	if (rpm > min_p_term_rpm) {
+		if (p_term > 0) p_term = 0;
+	}
+	else if (rpm < -min_p_term_rpm) {
+		if (p_term < 0) p_term = 0;
+	}
+	else {
+		p_term = 0;
+	}
+	*/
+	// TEMP: prevent P-term acceleration (inverted) (ONLY USE WITH disable output when rpm is negative (inverted))
+	//if (p_term < 0) p_term = 0;
+
 	// Filter D
+	/*
+	if (fabs(rpm) < 3000) {
+		conf_now->s_pid_kd_filter = 0.01;
+	} else {
+		conf_now->s_pid_kd_filter = 0.5;
+	}
+	*/
+	const float LOW_RPM_THRESHOLD = 3500.0f;
+	const float HIGH_RPM_THRESHOLD = 4500.0f;
+	const float LOW_KD_FILTER = 0.001f;
+	const float HIGH_KD_FILTER = 0.5f;
+
+	float rpm_abs = fabsf(rpm);
+	float kd_filter;
+
+	if (rpm_abs < LOW_RPM_THRESHOLD) {
+	    kd_filter = LOW_KD_FILTER;
+	} else if (rpm_abs > HIGH_RPM_THRESHOLD) {
+	    kd_filter = HIGH_KD_FILTER;
+	} else {
+	    // Linear interpolation between LOW_RPM_THRESHOLD and HIGH_RPM_THRESHOLD
+	    kd_filter = LOW_KD_FILTER + (HIGH_KD_FILTER - LOW_KD_FILTER) *
+	                (rpm_abs - LOW_RPM_THRESHOLD) / (HIGH_RPM_THRESHOLD - LOW_RPM_THRESHOLD);
+	}
+
+	conf_now->s_pid_kd_filter = kd_filter;
+
 	UTILS_LP_FAST(motor->m_speed_d_filter, d_term, conf_now->s_pid_kd_filter);
 	d_term = motor->m_speed_d_filter;
 
@@ -560,6 +603,12 @@ void foc_run_pid_control_speed(bool index_found, float dt, motor_all_state_t *mo
 		if (rpm < -20.0 && output > 0.0) {
 			output = 0.0;
 		}
+	}
+
+	// TEMP: disable output when rpm is negative (inverted)
+	if (rpm > 0)
+	{
+		output = 0;
 	}
 
 	if (is_braking)
